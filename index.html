@@ -7,145 +7,46 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root {
-            --primary: #06c755;
-            --bg: #f5f6f8;
-            --card-bg: #ffffff;
-            --text-main: #1f1f1f;
-            --text-sub: #888888;
-            --danger: #ff3b30;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            margin: 0;
-            padding: 0;
-            color: var(--text-main);
-            padding-bottom: 80px; /* 預留底部導航空間 */
-        }
-
-        /* 頂部標題 */
-        header {
-            background: var(--card-bg);
-            padding: 20px;
-            padding-top: max(20px, env(safe-area-inset-top));
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+        :root { --primary: #06c755; --bg: #f5f6f8; --card-bg: #ffffff; --text-main: #1f1f1f; --text-sub: #888888; --danger: #ff3b30; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text-main); padding-bottom: 80px; }
+        header { background: var(--card-bg); padding: 20px; padding-top: max(20px, env(safe-area-inset-top)); box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
         h1 { margin: 0; font-size: 1.2rem; text-align: center; }
-
-        /* 內容容器 */
         .container { padding: 20px; display: none; }
         .container.active { display: block; }
-
-        /* === 1. 錢包視圖 (My Wallet) === */
-        .wallet-summary {
-            background: linear-gradient(135deg, #06c755, #04b34a);
-            color: white;
-            padding: 20px;
-            border-radius: 16px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
-        }
+        .wallet-summary { background: linear-gradient(135deg, #06c755, #04b34a); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3); }
         .total-limit-label { font-size: 0.8rem; opacity: 0.9; }
         .total-limit-value { font-size: 1.8rem; font-weight: bold; margin-top: 5px; }
-
-        /* 卡片列表 */
-        .credit-card {
-            background: var(--card-bg);
-            border-radius: 16px;
-            padding: 0; /* 圖片滿版 */
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s;
-        }
-        .credit-card:active { transform: scale(0.98); }
-
-        .card-visual {
-            height: 140px;
-            background: linear-gradient(135deg, #333, #555);
-            padding: 20px;
-            color: white;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        /* 根據銀行變色 (範例) */
+        .credit-card { background: var(--card-bg); border-radius: 16px; padding: 0; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; overflow: hidden; }
+        .card-visual { height: 140px; background: linear-gradient(135deg, #333, #555); padding: 20px; color: white; display: flex; flex-direction: column; justify-content: space-between; }
         .card-visual[data-bank="taishin"] { background: linear-gradient(135deg, #e60012, #99000c); }
         .card-visual[data-bank="fubon"] { background: linear-gradient(135deg, #005598, #003366); }
-
         .card-name { font-size: 1.1rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         .card-bank { font-size: 0.8rem; opacity: 0.8; }
         .card-info-row { display: flex; justify-content: space-between; font-size: 0.9rem; }
-        
-        .card-actions {
-            padding: 10px;
-            display: flex;
-            justify-content: flex-end;
-            background: #fff;
-        }
-        .btn-delete {
-            color: var(--danger);
-            background: none;
-            border: none;
-            padding: 8px 15px;
-            font-size: 0.9rem;
-            cursor: pointer;
-        }
-
-        /* === 2. 新增表單 (Add Card) === */
+        .card-actions { padding: 10px; display: flex; justify-content: flex-end; background: #fff; }
+        .btn-delete { color: var(--danger); background: none; border: none; padding: 8px 15px; font-size: 0.9rem; cursor: pointer; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
-        input, select {
-            width: 100%; padding: 14px; border: 1px solid #eee;
-            border-radius: 12px; background: #fff; font-size: 16px; box-sizing: border-box;
-        }
-        .btn-primary {
-            width: 100%; padding: 16px; background: var(--primary);
-            color: white; border: none; border-radius: 12px;
-            font-size: 1.1rem; font-weight: bold; cursor: pointer;
-        }
-
-        /* === 底部導航列 === */
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: white; border-top: 1px solid #eee;
-            display: flex; justify-content: space-around;
-            padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom));
-            z-index: 100;
-        }
-        .nav-item {
-            flex: 1; text-align: center; color: var(--text-sub);
-            font-size: 0.7rem; cursor: pointer;
-        }
+        input, select { width: 100%; padding: 14px; border: 1px solid #eee; border-radius: 12px; background: #fff; font-size: 16px; box-sizing: border-box; }
+        .btn-primary { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; justify-content: space-around; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); z-index: 100; }
+        .nav-item { flex: 1; text-align: center; color: var(--text-sub); font-size: 0.7rem; cursor: pointer; }
         .nav-item.active { color: var(--primary); }
         .nav-item i { font-size: 1.4rem; display: block; margin-bottom: 4px; }
-
-        /* Loading & Empty State */
         .loading { text-align: center; padding: 40px; color: #999; }
         .empty-state { text-align: center; padding: 40px; color: #999; }
         .empty-state i { font-size: 3rem; margin-bottom: 10px; color: #ddd; }
-
     </style>
 </head>
 <body>
 
-    <header>
-        <h1 id="pageTitle">我的錢包</h1>
-    </header>
+    <header><h1 id="pageTitle">我的錢包</h1></header>
 
     <div id="viewWallet" class="container active">
         <div class="wallet-summary">
             <div class="total-limit-label">總信用額度</div>
             <div class="total-limit-value" id="totalLimit">NT$ 0</div>
         </div>
-        
         <div id="cardList">
             <div class="loading"><i class="fas fa-spinner fa-spin"></i> 載入中...</div>
         </div>
@@ -164,9 +65,7 @@
             </div>
             <div class="form-group">
                 <label>選擇卡片</label>
-                <select id="cardSelect" disabled>
-                    <option value="">請先選擇銀行</option>
-                </select>
+                <select id="cardSelect" disabled><option value="">請先選擇銀行</option></select>
             </div>
             <div class="form-group">
                 <label>信用額度</label>
@@ -185,47 +84,30 @@
     </div>
 
     <nav class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('viewWallet')">
-            <i class="fas fa-wallet"></i>
-            錢包
-        </div>
-        <div class="nav-item" onclick="switchTab('viewAdd')">
-            <i class="fas fa-plus-circle"></i>
-            新增
-        </div>
+        <div class="nav-item active" onclick="switchTab('viewWallet')"><i class="fas fa-wallet"></i>錢包</div>
+        <div class="nav-item" onclick="switchTab('viewAdd')"><i class="fas fa-plus-circle"></i>新增</div>
     </nav>
 
     <script>
-        // ================= CONFIG =================
+        // ================= CONFIG (請確認這裡!) =================
         const LIFF_ID = '2009160981-CWCxMTaI'; 
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzqWS-QzdAOxv-gxl97LAH5A-Ua00MC-oOBWwprri6Hf2ICBNJLsDgvGEaOba_xwrMGKw/exec'; 
-        // ==========================================
+        // ⚠️ 請務必換成您剛剛 GAS「建立新版本」後的新網址
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwLwn6aE3AXXG3i_yYqlRfXRFRRxrQ9DO1vwH7oOGwbS6ql3fdtUgKyRn-sCfJOPiufCw/exec'; 
+        // ========================================================
 
-        // 卡片資料庫 (前端選單用，實際權益在 Firebase)
         const cardDb = {
-            "taishin": [
-                {code: "c_001", name: "台新 @GoGo 卡"},
-                {code: "c_002", name: "台新 FlyGo 卡"},
-                {code: "c_004", name: "台新 太陽/玫瑰 (天天刷)"}
-            ],
-            "fubon": [
-                {code: "c_005", name: "富邦 J 卡"},
-                {code: "c_006", name: "富邦 momo 卡"}
-            ],
-            "cathay": [
-                {code: "c_009", name: "國泰 CUBE 卡"}
-            ]
+            "taishin": [{code: "c_001", name: "台新 @GoGo 卡"}, {code: "c_002", name: "台新 FlyGo 卡"}, {code: "c_004", name: "台新 太陽/玫瑰 (天天刷)"}],
+            "fubon": [{code: "c_005", name: "富邦 J 卡"}, {code: "c_006", name: "富邦 momo 卡"}],
+            "cathay": [{code: "c_009", name: "國泰 CUBE 卡"}]
         };
 
         let currentUserId = null;
 
-        // 初始化
         window.onload = async function() {
             initDateSelects();
             await initLiff();
         };
 
-        // LIFF 初始化
         async function initLiff() {
             try {
                 await liff.init({ liffId: LIFF_ID });
@@ -234,15 +116,14 @@
                 } else {
                     const profile = await liff.getProfile();
                     currentUserId = profile.userId;
-                    fetchWalletData(); // 登入後立刻抓資料
+                    fetchWalletData(); 
                 }
             } catch (err) {
-                console.error(err);
-                alert("LIFF 錯誤: " + err.message);
+                alert("LIFF 初始化錯誤: " + err.message);
             }
         }
 
-        // 讀取錢包資料 (GET)
+        // 修正後的讀取功能
         function fetchWalletData() {
             const listDiv = document.getElementById('cardList');
             listDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> 資料同步中...</div>';
@@ -257,23 +138,22 @@
                 if(res.status === "success") {
                     renderCards(res.data);
                 } else {
-                    listDiv.innerHTML = '<div class="empty-state">讀取失敗</div>';
+                    listDiv.innerHTML = '<div class="empty-state">讀取失敗：' + (res.msg || '未知錯誤') + '</div>';
                 }
+            })
+            .catch(err => {
+                // 這裡會抓到連線錯誤 (例如 404 網址錯)
+                listDiv.innerHTML = '<div class="empty-state">連線錯誤<br><small>請檢查 GAS 網址</small></div>';
+                console.error(err);
             });
         }
 
-        // 渲染卡片列表
         function renderCards(cards) {
             const listDiv = document.getElementById('cardList');
             const totalDiv = document.getElementById('totalLimit');
             
             if (!cards || cards.length === 0) {
-                listDiv.innerHTML = `
-                    <div class="empty-state">
-                        <i class="far fa-credit-card"></i>
-                        <p>您尚未新增任何卡片</p>
-                        <button class="btn-primary" style="margin-top:10px; width:auto;" onclick="switchTab('viewAdd')">立即新增</button>
-                    </div>`;
+                listDiv.innerHTML = `<div class="empty-state"><i class="far fa-credit-card"></i><p>您尚未新增任何卡片</p><button class="btn-primary" style="margin-top:10px; width:auto;" onclick="switchTab('viewAdd')">立即新增</button></div>`;
                 totalDiv.innerText = "NT$ 0";
                 return;
             }
@@ -289,24 +169,19 @@
                             <div class="card-bank">${getBankName(card.bank)}</div>
                             <div class="card-name">${card.card_name}</div>
                             <div class="card-info-row">
-                                <span>**** **** **** ${index + 1234}</span>
+                                <span>**** ${index + 1234}</span>
                                 <span>結帳日 ${card.statement_day} 號</span>
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn-delete" onclick="deleteCard(${index})">
-                                <i class="fas fa-trash-alt"></i> 移除
-                            </button>
+                            <button class="btn-delete" onclick="deleteCard(${index})"><i class="fas fa-trash-alt"></i> 移除</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
-
             listDiv.innerHTML = html;
             totalDiv.innerText = "NT$ " + total.toLocaleString();
         }
 
-        // 新增卡片 (POST)
         function submitCard() {
             const bank = document.getElementById('bankSelect').value;
             const code = document.getElementById('cardSelect').value;
@@ -314,7 +189,6 @@
 
             if(!bank || !code || !limit) { alert("請填寫完整資訊"); return; }
 
-            // 顯示 Loading
             const btn = document.querySelector('#addForm .btn-primary');
             const originalText = btn.innerText;
             btn.innerText = "儲存中...";
@@ -341,11 +215,15 @@
                 if(res.status === "success") {
                     alert("新增成功！");
                     document.getElementById('addForm').reset();
-                    switchTab('viewWallet'); // 切換回列表
-                    fetchWalletData(); // 重新整理
+                    switchTab('viewWallet'); 
+                    fetchWalletData(); 
                 } else {
                     alert("失敗: " + res.msg);
                 }
+            })
+            .catch(err => {
+                alert("連線失敗，請檢查 GAS 部署");
+                console.error(err);
             })
             .finally(() => {
                 btn.innerText = originalText;
@@ -353,10 +231,8 @@
             });
         }
 
-        // 刪除卡片
         function deleteCard(index) {
             if(!confirm("確定要移除這張卡片嗎？")) return;
-
             fetch(GAS_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "delete_card", userId: currentUserId, cardIndex: index }),
@@ -369,11 +245,9 @@
             });
         }
 
-        // 頁面切換邏輯
         function switchTab(tabId) {
             document.querySelectorAll('.container').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
             if(tabId === 'viewWallet') {
                 document.querySelector('.nav-item:nth-child(1)').classList.add('active');
@@ -384,16 +258,13 @@
             }
         }
 
-        // 輔助函式
         function updateCardOptions() {
             const bank = document.getElementById('bankSelect').value;
             const select = document.getElementById('cardSelect');
             select.innerHTML = '<option value="">請選擇卡片</option>';
             select.disabled = true;
             if(bank && cardDb[bank]) {
-                cardDb[bank].forEach(c => {
-                    select.innerHTML += `<option value="${c.code}">${c.name}</option>`;
-                });
+                cardDb[bank].forEach(c => { select.innerHTML += `<option value="${c.code}">${c.name}</option>`; });
                 select.disabled = false;
             }
         }
