@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的信用卡管理</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f5f5f5; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        select, input, button { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;}
+        button { background-color: #06c755; color: white; border: none; font-weight: bold; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>💳 新增信用卡</h2>
+        <div id="loading">載入中...</div>
+        
+        <form id="cardForm" class="hidden">
+            <label>1. 選擇銀行</label>
+            <select id="bankSelect" onchange="loadCards()">
+                <option value="">請選擇銀行</option>
+                <option value="taishin">台新銀行</option>
+                <option value="fubon">富邦銀行</option>
+            </select>
+
+            <label>2. 選擇卡片</label>
+            <select id="cardSelect" disabled>
+                <option value="">請先選擇銀行</option>
+            </select>
+
+            <label>3. 信用額度</label>
+            <input type="number" id="limit" placeholder="例如：200000">
+
+            <label>4. 結帳日 (每月幾號)</label>
+            <select id="statementDay">
+                </select>
+
+            <label>5. 繳款截止日 (每月幾號)</label>
+            <select id="paymentDay">
+                </select>
+
+            <button type="button" onclick="submitData()">儲存卡片</button>
+        </form>
+    </div>
+
+    <script>
+        // 設定區：這裡要換成你的
+        const LIFF_ID = '你的_LIFF_ID'; 
+        const GAS_API_URL = '你的_GAS_網頁應用程式網址'; 
+
+        // 假資料：銀行與卡片對應 (未來可以從 GAS 讀取)
+        const cardDatabase = {
+            "taishin": [
+                {code: "c_001", name: "台新 @GoGo 卡"},
+                {code: "c_002", name: "台新 FlyGo 卡"}
+            ],
+            "fubon": [
+                {code: "c_003", name: "富邦 J 卡"},
+                {code: "c_004", name: "富邦 momo 卡"}
+            ]
+        };
+
+        // 初始化
+        window.onload = function() {
+            initializeLiff();
+            populateDays();
+        };
+
+        function initializeLiff() {
+            liff.init({ liffId: LIFF_ID }).then(() => {
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('cardForm').classList.remove('hidden');
+                }
+            }).catch(err => {
+                console.error(err);
+                alert("LIFF 初始化失敗");
+            });
+        }
+
+        function loadCards() {
+            const bank = document.getElementById('bankSelect').value;
+            const cardSelect = document.getElementById('cardSelect');
+            cardSelect.innerHTML = '<option value="">請選擇卡片</option>';
+            
+            if (bank && cardDatabase[bank]) {
+                cardSelect.disabled = false;
+                cardDatabase[bank].forEach(card => {
+                    cardSelect.innerHTML += `<option value="${card.code}">${card.name}</option>`;
+                });
+            } else {
+                cardSelect.disabled = true;
+            }
+        }
+
+        function populateDays() {
+            const sDay = document.getElementById('statementDay');
+            const pDay = document.getElementById('paymentDay');
+            for(let i=1; i<=31; i++) {
+                sDay.innerHTML += `<option value="${i}">${i} 號</option>`;
+                pDay.innerHTML += `<option value="${i}">${i} 號</option>`;
+            }
+        }
+
+        function submitData() {
+            liff.getProfile().then(profile => {
+                const userId = profile.userId;
+                const data = {
+                    action: "save_card", // 告訴後端我要存卡片
+                    userId: userId,
+                    cardCode: document.getElementById('cardSelect').value,
+                    limit: document.getElementById('limit').value,
+                    statementDay: document.getElementById('statementDay').value,
+                    paymentDay: document.getElementById('paymentDay').value
+                };
+
+                if(!data.cardCode) { alert("請選擇卡片"); return; }
+
+                // 傳送資料給 GAS
+                // 這裡使用 fetch 需要處理 CORS，或使用 sendMessages 透過機器人回傳
+                // 為了簡單，我們這裡用 sendMessages 讓機器人幫忙觸發 (或者用 fetch POST 到 GAS)
+                
+                // 方案 A: 直接 Post 到 GAS (比較正規，但需要處理 CORS)
+                fetch(GAS_API_URL, {
+                    redirect: "follow", // 重要：GAS 會轉址
+                    method: "POST",
+                    body: JSON.stringify(data),
+                    headers: { "Content-Type": "text/plain;charset=utf-8" }
+                }).then(response => {
+                    alert("儲存成功！");
+                    liff.closeWindow();
+                }).catch(err => {
+                    alert("儲存失敗，請稍後再試");
+                });
+
+            });
+        }
+    </script>
+</body>
+</html>
