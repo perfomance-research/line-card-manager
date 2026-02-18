@@ -3,283 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>信用卡管家</title>
+    <title>我的錢包</title>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --primary: #06c755; --bg: #f5f6f8; --card-bg: #ffffff; --text-main: #1f1f1f; --text-sub: #888888; --danger: #ff3b30; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--text-main); padding-bottom: 80px; }
-        header { background: var(--card-bg); padding: 20px; padding-top: max(20px, env(safe-area-inset-top)); box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
-        h1 { margin: 0; font-size: 1.2rem; text-align: center; }
-        .container { padding: 20px; display: none; }
+        /* 共用變數 */
+        :root { --primary: #FF9F43; --bg: #FFF5E1; --text: #5E4B35; --bar-bg: #E0E0E0; --danger: #FF6B6B; }
+        body { font-family: "Varela Round", sans-serif; background: var(--bg); color: var(--text); padding-bottom: 90px; margin:0; }
+
+        /* 可愛卡片樣式 */
+        .credit-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 15px;
+            margin: 15px 20px;
+            box-shadow: 0 8px 20px rgba(94, 75, 53, 0.1);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #FFF0D4;
+        }
+
+        .card-visual {
+            height: 160px;
+            border-radius: 15px;
+            background-size: cover;
+            background-position: center;
+            background-color: #333; /* 預設深色 */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 15px;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        /* 額度進度條 */
+        .limit-info { margin-top: 10px; }
+        .progress-bar {
+            height: 10px; background: var(--bar-bg); border-radius: 5px; overflow: hidden; margin: 5px 0;
+        }
+        .progress-fill {
+            height: 100%; background: var(--primary); width: 0%; transition: width 0.5s;
+        }
+        .limit-text { display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; }
+        .payment-date { font-size: 0.8rem; color: var(--danger); font-weight: bold; margin-top: 5px; text-align: right; }
+
+        /* 上傳圖片預覽 */
+        .upload-box {
+            border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 10px; cursor: pointer; margin-bottom: 15px;
+        }
+        .preview-img { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; display: none; }
+
+        /* 底部導航 (可愛風) */
+        .bottom-nav {
+            position: fixed; bottom: 20px; left: 20px; right: 20px;
+            background: #fff; border-radius: 50px;
+            display: flex; justify-content: space-around; padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        .nav-item { text-align: center; color: #ccc; flex: 1; font-size: 1.2rem; cursor: pointer; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); transform: translateY(-5px); }
+        .nav-text { font-size: 0.7rem; display: block; margin-top: 2px; }
+
+        /* 表單樣式 */
+        input, select { width: 100%; padding: 12px; border: 2px solid #EEE; border-radius: 12px; margin-bottom: 15px; box-sizing: border-box; }
+        .btn-primary { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 0 #E67E22; }
+        .btn-primary:active { transform: translateY(4px); box-shadow: none; }
+        
+        .container { display: none; padding-top: 20px; }
         .container.active { display: block; }
-        .wallet-summary { background: linear-gradient(135deg, #06c755, #04b34a); color: white; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3); }
-        .total-limit-label { font-size: 0.8rem; opacity: 0.9; }
-        .total-limit-value { font-size: 1.8rem; font-weight: bold; margin-top: 5px; }
-        .credit-card { background: var(--card-bg); border-radius: 16px; padding: 0; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; overflow: hidden; }
-        .card-visual { height: 140px; background: linear-gradient(135deg, #333, #555); padding: 20px; color: white; display: flex; flex-direction: column; justify-content: space-between; }
-        .card-visual[data-bank="taishin"] { background: linear-gradient(135deg, #e60012, #99000c); }
-        .card-visual[data-bank="fubon"] { background: linear-gradient(135deg, #005598, #003366); }
-        .card-name { font-size: 1.1rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        .card-bank { font-size: 0.8rem; opacity: 0.8; }
-        .card-info-row { display: flex; justify-content: space-between; font-size: 0.9rem; }
-        .card-actions { padding: 10px; display: flex; justify-content: flex-end; background: #fff; }
-        .btn-delete { color: var(--danger); background: none; border: none; padding: 8px 15px; font-size: 0.9rem; cursor: pointer; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; }
-        input, select { width: 100%; padding: 14px; border: 1px solid #eee; border-radius: 12px; background: #fff; font-size: 16px; box-sizing: border-box; }
-        .btn-primary { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
-        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #eee; display: flex; justify-content: space-around; padding: 10px 0; padding-bottom: max(10px, env(safe-area-inset-bottom)); z-index: 100; }
-        .nav-item { flex: 1; text-align: center; color: var(--text-sub); font-size: 0.7rem; cursor: pointer; }
-        .nav-item.active { color: var(--primary); }
-        .nav-item i { font-size: 1.4rem; display: block; margin-bottom: 4px; }
-        .loading { text-align: center; padding: 40px; color: #999; }
-        .empty-state { text-align: center; padding: 40px; color: #999; }
-        .empty-state i { font-size: 3rem; margin-bottom: 10px; color: #ddd; }
     </style>
 </head>
 <body>
 
-    <header><h1 id="pageTitle">我的錢包</h1></header>
-
     <div id="viewWallet" class="container active">
-        <div class="wallet-summary">
-            <div class="total-limit-label">總信用額度</div>
-            <div class="total-limit-value" id="totalLimit">NT$ 0</div>
-        </div>
+        <h2 style="text-align:center; color:var(--text);">我的可愛錢包 👛</h2>
         <div id="cardList">
-            <div class="loading"><i class="fas fa-spinner fa-spin"></i> 載入中...</div>
+            <div style="text-align:center; padding:50px; color:#aaa;">載入中...</div>
         </div>
     </div>
 
-    <div id="viewAdd" class="container">
+    <div id="viewAdd" class="container" style="padding: 20px;">
+        <h2 style="text-align:center;">新增卡片 ✨</h2>
         <form id="addForm">
-            <div class="form-group">
-                <label>發卡銀行</label>
-                <select id="bankSelect" onchange="updateCardOptions()">
-                    <option value="">請選擇</option>
-                    <option value="taishin">台新銀行</option>
-                    <option value="fubon">富邦銀行</option>
-                    <option value="cathay">國泰世華</option>
-                </select>
+            <label>卡片暱稱</label>
+            <input type="text" id="cardName" placeholder="例如：吃飯專用卡">
+            
+            <label>發卡銀行</label>
+            <select id="bankSelect">
+                <option value="taishin">台新銀行</option>
+                <option value="fubon">富邦銀行</option>
+                <option value="cathay">國泰世華</option>
+                <option value="ctbc">中國信託</option>
+                <option value="other">其他銀行</option>
+            </select>
+
+            <label>自訂卡面 (點擊上傳)</label>
+            <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="previewFile()">
+            <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-camera fa-2x"></i><br>上傳圖片
             </div>
-            <div class="form-group">
-                <label>選擇卡片</label>
-                <select id="cardSelect" disabled><option value="">請先選擇銀行</option></select>
-            </div>
-            <div class="form-group">
-                <label>信用額度</label>
-                <input type="number" id="limit" placeholder="例如 200000" inputmode="numeric">
-            </div>
-            <div class="form-group">
-                <label>結帳日 (每月)</label>
-                <select id="statementDay"></select>
-            </div>
-            <div class="form-group">
-                <label>繳款日 (每月)</label>
-                <select id="paymentDay"></select>
-            </div>
+            <img id="previewImg" class="preview-img">
+            <input type="hidden" id="imageBase64">
+
+            <label>信用額度</label>
+            <input type="number" id="limit" placeholder="200000">
+
+            <label>結帳日 (每月幾號)</label>
+            <input type="number" id="statementDay" placeholder="5">
+
+            <label>繳款日 (每月幾號)</label>
+            <input type="number" id="paymentDay" placeholder="20">
+
             <button type="button" class="btn-primary" onclick="submitCard()">確認新增</button>
         </form>
     </div>
 
     <nav class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('viewWallet')"><i class="fas fa-wallet"></i>錢包</div>
-        <div class="nav-item" onclick="switchTab('viewAdd')"><i class="fas fa-plus-circle"></i>新增</div>
+        <div class="nav-item active" onclick="switchTab('viewWallet')">
+            <i class="fas fa-wallet"></i><span class="nav-text">錢包</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('viewAdd')">
+            <i class="fas fa-plus-circle"></i><span class="nav-text">新增</span>
+        </div>
+        <div class="nav-item" onclick="location.href='accounting.html'">
+            <i class="fas fa-calculator"></i><span class="nav-text">記帳</span>
+        </div>
     </nav>
 
     <script>
-        // ================= CONFIG (請確認這裡!) =================
-        const LIFF_ID = '2009160981-CWCxMTaI'; 
-        // ⚠️ 請務必換成您剛剛 GAS「建立新版本」後的新網址
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbwLwn6aE3AXXG3i_yYqlRfXRFRRxrQ9DO1vwH7oOGwbS6ql3fdtUgKyRn-sCfJOPiufCw/exec'; 
-        // ========================================================
-
-        const cardDb = {
-            "taishin": [{code: "c_001", name: "台新 @GoGo 卡"}, {code: "c_002", name: "台新 FlyGo 卡"}, {code: "c_004", name: "台新 太陽/玫瑰 (天天刷)"}],
-            "fubon": [{code: "c_005", name: "富邦 J 卡"}, {code: "c_006", name: "富邦 momo 卡"}],
-            "cathay": [{code: "c_009", name: "國泰 CUBE 卡"}]
-        };
-
+        const GAS_URL = '您的_GAS_新網址'; // ⚠️ 請換成新網址
+        const LIFF_ID = '您的_LIFF_ID'; 
         let currentUserId = null;
 
-        window.onload = async function() {
-            initDateSelects();
-            await initLiff();
+        window.onload = async () => {
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) liff.login();
+            else {
+                currentUserId = (await liff.getProfile()).userId;
+                loadWallet();
+            }
         };
 
-        async function initLiff() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                } else {
-                    const profile = await liff.getProfile();
-                    currentUserId = profile.userId;
-                    fetchWalletData(); 
-                }
-            } catch (err) {
-                alert("LIFF 初始化錯誤: " + err.message);
-            }
-        }
-
-        // 修正後的讀取功能
-        function fetchWalletData() {
-            const listDiv = document.getElementById('cardList');
-            listDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> 資料同步中...</div>';
-
+        function loadWallet() {
             fetch(GAS_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "get_wallet", userId: currentUserId }),
-                headers: { "Content-Type": "text/plain;charset=utf-8" }
+                method: 'POST',
+                body: JSON.stringify({ action: 'get_wallet', userId: currentUserId }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
             })
             .then(res => res.json())
-            .then(res => {
-                if(res.status === "success") {
-                    renderCards(res.data);
-                } else {
-                    listDiv.innerHTML = '<div class="empty-state">讀取失敗：' + (res.msg || '未知錯誤') + '</div>';
-                }
-            })
-            .catch(err => {
-                // 這裡會抓到連線錯誤 (例如 404 網址錯)
-                listDiv.innerHTML = '<div class="empty-state">連線錯誤<br><small>請檢查 GAS 網址</small></div>';
-                console.error(err);
-            });
+            .then(res => renderCards(res.data));
         }
 
         function renderCards(cards) {
-            const listDiv = document.getElementById('cardList');
-            const totalDiv = document.getElementById('totalLimit');
-            
-            if (!cards || cards.length === 0) {
-                listDiv.innerHTML = `<div class="empty-state"><i class="far fa-credit-card"></i><p>您尚未新增任何卡片</p><button class="btn-primary" style="margin-top:10px; width:auto;" onclick="switchTab('viewAdd')">立即新增</button></div>`;
-                totalDiv.innerText = "NT$ 0";
+            const list = document.getElementById('cardList');
+            if(!cards || cards.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding:50px;">還沒有卡片喔<br>快去新增一張吧！</div>';
                 return;
             }
-
             let html = '';
-            let total = 0;
+            cards.forEach(c => {
+                // 計算進度條
+                const used = c.used || 0;
+                const limit = c.limit || 1;
+                const percent = Math.min((used / limit) * 100, 100);
+                const bgImage = c.custom_image ? `url(${c.custom_image})` : 'linear-gradient(45deg, #FF9F43, #FF6B6B)';
 
-            cards.forEach((card, index) => {
-                total += (card.limit || 0);
                 html += `
-                    <div class="credit-card">
-                        <div class="card-visual" data-bank="${card.bank}">
-                            <div class="card-bank">${getBankName(card.bank)}</div>
-                            <div class="card-name">${card.card_name}</div>
-                            <div class="card-info-row">
-                                <span>**** ${index + 1234}</span>
-                                <span>結帳日 ${card.statement_day} 號</span>
-                            </div>
+                <div class="credit-card">
+                    <div class="card-visual" style="background-image: ${bgImage}">
+                        <div style="font-size:1.2rem; font-weight:bold;">${c.card_name}</div>
+                        <div style="font-size:0.8rem; opacity:0.9;">${getBankName(c.bank)}</div>
+                    </div>
+                    <div class="limit-info">
+                        <div class="limit-text">
+                            <span>已用 $${used.toLocaleString()}</span>
+                            <span>額度 $${limit.toLocaleString()}</span>
                         </div>
-                        <div class="card-actions">
-                            <button class="btn-delete" onclick="deleteCard(${index})"><i class="fas fa-trash-alt"></i> 移除</button>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${percent}%;"></div>
                         </div>
-                    </div>`;
+                        <div class="payment-date">
+                            <i class="far fa-clock"></i> 下次繳款：每月 ${c.payment_day} 號
+                        </div>
+                    </div>
+                </div>`;
             });
-            listDiv.innerHTML = html;
-            totalDiv.innerText = "NT$ " + total.toLocaleString();
+            list.innerHTML = html;
+        }
+
+        // 圖片轉 Base64
+        function previewFile() {
+            const file = document.getElementById('fileInput').files[0];
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                document.getElementById('previewImg').src = reader.result;
+                document.getElementById('previewImg').style.display = "block";
+                document.getElementById('imageBase64').value = reader.result; // 存入隱藏欄位
+            }
+            if (file) reader.readAsDataURL(file);
         }
 
         function submitCard() {
-            const bank = document.getElementById('bankSelect').value;
-            const code = document.getElementById('cardSelect').value;
-            const limit = document.getElementById('limit').value;
-
-            if(!bank || !code || !limit) { alert("請填寫完整資訊"); return; }
-
-            const btn = document.querySelector('#addForm .btn-primary');
-            const originalText = btn.innerText;
-            btn.innerText = "儲存中...";
-            btn.disabled = true;
+            const btn = document.querySelector('.btn-primary');
+            btn.innerText = "上傳中..."; btn.disabled = true;
 
             const data = {
-                action: "save_card",
+                action: 'save_card',
                 userId: currentUserId,
-                bank: bank,
-                cardCode: code,
-                cardName: document.getElementById('cardSelect').selectedOptions[0].text,
-                limit: limit,
+                bank: document.getElementById('bankSelect').value,
+                cardName: document.getElementById('cardName').value,
+                image: document.getElementById('imageBase64').value, // 圖片資料
+                limit: document.getElementById('limit').value,
                 statementDay: document.getElementById('statementDay').value,
                 paymentDay: document.getElementById('paymentDay').value
             };
 
             fetch(GAS_URL, {
-                method: "POST",
+                method: 'POST',
                 body: JSON.stringify(data),
-                headers: { "Content-Type": "text/plain;charset=utf-8" }
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
             })
             .then(res => res.json())
             .then(res => {
-                if(res.status === "success") {
-                    alert("新增成功！");
-                    document.getElementById('addForm').reset();
-                    switchTab('viewWallet'); 
-                    fetchWalletData(); 
-                } else {
-                    alert("失敗: " + res.msg);
-                }
-            })
-            .catch(err => {
-                alert("連線失敗，請檢查 GAS 部署");
-                console.error(err);
-            })
-            .finally(() => {
-                btn.innerText = originalText;
-                btn.disabled = false;
+                alert('新增成功！');
+                location.reload();
             });
         }
 
-        function deleteCard(index) {
-            if(!confirm("確定要移除這張卡片嗎？")) return;
-            fetch(GAS_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "delete_card", userId: currentUserId, cardIndex: index }),
-                headers: { "Content-Type": "text/plain;charset=utf-8" }
-            })
-            .then(res => res.json())
-            .then(res => {
-                if(res.status === "success") fetchWalletData();
-                else alert("刪除失敗");
-            });
+        function switchTab(id) {
+            document.querySelectorAll('.container').forEach(e => e.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            event.currentTarget.classList.add('active');
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.container').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            if(tabId === 'viewWallet') {
-                document.querySelector('.nav-item:nth-child(1)').classList.add('active');
-                document.getElementById('pageTitle').innerText = "我的錢包";
-            } else {
-                document.querySelector('.nav-item:nth-child(2)').classList.add('active');
-                document.getElementById('pageTitle').innerText = "新增卡片";
-            }
-        }
-
-        function updateCardOptions() {
-            const bank = document.getElementById('bankSelect').value;
-            const select = document.getElementById('cardSelect');
-            select.innerHTML = '<option value="">請選擇卡片</option>';
-            select.disabled = true;
-            if(bank && cardDb[bank]) {
-                cardDb[bank].forEach(c => { select.innerHTML += `<option value="${c.code}">${c.name}</option>`; });
-                select.disabled = false;
-            }
-        }
-
-        function initDateSelects() {
-            let opts = '';
-            for(let i=1; i<=31; i++) opts += `<option value="${i}">${i} 號</option>`;
-            document.getElementById('statementDay').innerHTML = opts;
-            document.getElementById('paymentDay').innerHTML = opts;
-        }
-        
-        function getBankName(code) {
-            const map = { 'taishin': '台新銀行', 'fubon': '富邦銀行', 'cathay': '國泰世華' };
-            return map[code] || code;
-        }
+        function getBankName(code) { return { 'taishin': '台新銀行', 'fubon': '富邦銀行' }[code] || '銀行'; }
     </script>
 </body>
 </html>
