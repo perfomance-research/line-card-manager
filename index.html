@@ -110,36 +110,65 @@
         }
 
         function submitData() {
+            // 顯示載入中... (建議在 UI 上加個 Loading 效果)
+            const submitBtn = document.querySelector('button');
+            submitBtn.textContent = "儲存中...";
+            submitBtn.disabled = true;
+
             liff.getProfile().then(profile => {
                 const userId = profile.userId;
+                
+                // 準備要傳送的資料
                 const data = {
-                    action: "save_card", // 告訴後端我要存卡片
+                    action: "save_card", 
                     userId: userId,
+                    bank: document.getElementById('bankSelect').value, // 記得補上這行
+                    cardName: document.getElementById('cardSelect').options[document.getElementById('cardSelect').selectedIndex].text, // 抓取卡片名稱
                     cardCode: document.getElementById('cardSelect').value,
                     limit: document.getElementById('limit').value,
                     statementDay: document.getElementById('statementDay').value,
                     paymentDay: document.getElementById('paymentDay').value
                 };
 
-                if(!data.cardCode) { alert("請選擇卡片"); return; }
+                if(!data.cardCode) { 
+                    alert("請選擇卡片"); 
+                    submitBtn.textContent = "儲存卡片";
+                    submitBtn.disabled = false;
+                    return; 
+                }
 
-                // 傳送資料給 GAS
-                // 這裡使用 fetch 需要處理 CORS，或使用 sendMessages 透過機器人回傳
-                // 為了簡單，我們這裡用 sendMessages 讓機器人幫忙觸發 (或者用 fetch POST 到 GAS)
-                
-                // 方案 A: 直接 Post 到 GAS (比較正規，但需要處理 CORS)
+                // --- 關鍵修正開始 ---
+                // 使用 text/plain 避開 CORS OPTION 預檢請求
                 fetch(GAS_API_URL, {
-                    redirect: "follow", // 重要：GAS 會轉址
                     method: "POST",
-                    body: JSON.stringify(data),
-                    headers: { "Content-Type": "text/plain;charset=utf-8" }
-                }).then(response => {
-                    alert("儲存成功！");
-                    liff.closeWindow();
-                }).catch(err => {
-                    alert("儲存失敗，請稍後再試");
+                    body: JSON.stringify(data), // 將物件轉為字串
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8" 
+                    }
+                })
+                .then(response => response.json()) // 解析回傳的 JSON
+                .then(result => {
+                    if(result.status === "success") {
+                        alert("🎉 儲存成功！");
+                        liff.closeWindow(); // 關閉視窗
+                    } else {
+                        alert("儲存失敗：" + (result.msg || "未知錯誤"));
+                        // 恢復按鈕狀態
+                        submitBtn.textContent = "儲存卡片";
+                        submitBtn.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error("Fetch Error:", err); // 在 F12 console 顯示詳細錯誤
+                    alert("連線失敗，請檢查：\n1. GAS 部署權限是否為「任何人」\n2. 網址是否正確");
+                    submitBtn.textContent = "儲存卡片";
+                    submitBtn.disabled = false;
                 });
+                // --- 關鍵修正結束 ---
 
+            }).catch(err => {
+                console.error("LIFF Error:", err);
+                alert("無法取得使用者資料，請確認已在 LINE 中開啟");
             });
         }
     </script>
