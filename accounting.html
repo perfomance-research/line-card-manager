@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>記帳</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #54a0ff; --income: #1dd1a1; --expense: #ff6b6b; --bg: #f7f9fc; }
+        body { font-family: "Varela Round", sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+
+        /* 金額顯示區 */
+        .display-area {
+            background: #fff; padding: 20px; border-radius: 20px; text-align: right;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 20px;
+        }
+        .amount-input { font-size: 3rem; border: none; width: 100%; text-align: right; outline: none; color: #333; }
+        
+        /* 類型切換 (收入/支出) */
+        .type-toggle { display: flex; background: #eee; border-radius: 50px; padding: 5px; margin-bottom: 20px; }
+        .type-btn { flex: 1; padding: 10px; border-radius: 40px; text-align: center; cursor: pointer; transition: 0.3s; color: #888; }
+        .type-btn.active.expense { background: var(--expense); color: white; box-shadow: 0 4px 10px rgba(255, 107, 107, 0.4); }
+        .type-btn.active.income { background: var(--income); color: white; box-shadow: 0 4px 10px rgba(29, 209, 161, 0.4); }
+
+        /* 帳戶選擇 */
+        .account-selector { margin-bottom: 20px; }
+        select { width: 100%; padding: 15px; border-radius: 15px; border: 2px solid #eee; background: white; font-size: 1rem; }
+
+        /* 類別圖示網格 */
+        .category-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .cat-item { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: white; border-radius: 15px; padding: 15px 5px; cursor: pointer; transition: 0.2s;
+            border: 2px solid transparent;
+        }
+        .cat-item.selected { border-color: var(--primary); background: #eaf4ff; }
+        .cat-icon { font-size: 1.5rem; margin-bottom: 5px; color: #555; }
+        .cat-name { font-size: 0.8rem; color: #888; }
+
+        /* 確認按鈕 */
+        .btn-submit {
+            width: 100%; padding: 18px; background: var(--primary); color: white; 
+            border: none; border-radius: 15px; font-size: 1.2rem; font-weight: bold;
+            box-shadow: 0 5px 15px rgba(84, 160, 255, 0.4); cursor: pointer;
+        }
+        .btn-submit:active { transform: scale(0.98); }
+
+        /* 備註欄 */
+        .note-input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 15px; margin-bottom: 20px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="type-toggle">
+        <div class="type-btn active expense" onclick="setType('expense')">支出 💸</div>
+        <div class="type-btn income" onclick="setType('income')">收入 💰</div>
+    </div>
+
+    <div class="display-area">
+        <input type="number" id="amount" class="amount-input" placeholder="0" inputmode="numeric">
+    </div>
+
+    <div class="account-selector">
+        <select id="accountSelect">
+            <option>載入帳戶中...</option>
+        </select>
+    </div>
+
+    <div class="category-grid" id="catGrid">
+        </div>
+
+    <input type="text" id="note" class="note-input" placeholder="寫點備註吧... (選填)">
+
+    <button class="btn-submit" onclick="submitTrans()">記一筆 ✨</button>
+
+    <div style="text-align:center; margin-top:20px; color:#aaa; cursor:pointer;" onclick="location.href='index.html'">
+        返回錢包
+    </div>
+
+    <script>
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbz05y92IN__Za2ESzh5awOsNmmjCoe5K1uDU4RS59Oc20nso-ikqSW-NihFOFJ55_H1oA/exec'; // ⚠️ 同樣要換成新的
+        const LIFF_ID = '2009160981-CWCxMTaI'; // 建議可以共用同一個 LIFF ID
+
+        let currentType = 'expense';
+        let selectedCategory = 'food';
+        let currentUserId = null;
+
+        const categories = {
+            expense: [
+                {id: 'food', name: '飲食', icon: 'fa-utensils'},
+                {id: 'traffic', name: '交通', icon: 'fa-bus'},
+                {id: 'shopping', name: '購物', icon: 'fa-shopping-bag'},
+                {id: 'ent', name: '娛樂', icon: 'fa-gamepad'},
+                {id: 'life', name: '生活', icon: 'fa-home'},
+                {id: 'other', name: '其他', icon: 'fa-ellipsis-h'}
+            ],
+            income: [
+                {id: 'salary', name: '薪水', icon: 'fa-briefcase'},
+                {id: 'bonus', name: '獎金', icon: 'fa-gift'},
+                {id: 'invest', name: '投資', icon: 'fa-chart-line'}
+            ]
+        };
+
+        window.onload = async () => {
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) liff.login();
+            else {
+                currentUserId = (await liff.getProfile()).userId;
+                loadAccounts();
+                renderCategories();
+            }
+        };
+
+        function setType(type) {
+            currentType = type;
+            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.type-btn.${type}`).classList.add('active');
+            renderCategories();
+        }
+
+        function renderCategories() {
+            const grid = document.getElementById('catGrid');
+            grid.innerHTML = '';
+            categories[currentType].forEach((c, idx) => {
+                const item = document.createElement('div');
+                item.className = `cat-item ${idx === 0 ? 'selected' : ''}`; // 預設選第一個
+                if(idx===0) selectedCategory = c.id;
+                
+                item.innerHTML = `<i class="fas ${c.icon} cat-icon"></i><div class="cat-name">${c.name}</div>`;
+                item.onclick = () => {
+                    document.querySelectorAll('.cat-item').forEach(i => i.classList.remove('selected'));
+                    item.classList.add('selected');
+                    selectedCategory = c.id;
+                };
+                grid.appendChild(item);
+            });
+        }
+
+        function loadAccounts() {
+            fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'get_accounts', userId: currentUserId }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            })
+            .then(res => res.json())
+            .then(res => {
+                const sel = document.getElementById('accountSelect');
+                sel.innerHTML = '';
+                res.data.forEach(acc => {
+                    sel.innerHTML += `<option value="${acc.id}" data-type="${acc.type}">${acc.name} (餘額/剩餘: $${acc.balance})</option>`;
+                });
+            });
+        }
+
+        function submitTrans() {
+            const amount = document.getElementById('amount').value;
+            if(!amount) { alert('請輸入金額！'); return; }
+
+            const accSelect = document.getElementById('accountSelect');
+            const accountId = accSelect.value;
+            const accountType = accSelect.options[accSelect.selectedIndex].getAttribute('data-type'); // credit_card or cash
+
+            const btn = document.querySelector('.btn-submit');
+            btn.innerText = "紀錄中..."; btn.disabled = true;
+
+            const data = {
+                action: 'save_transaction',
+                userId: currentUserId,
+                type: currentType,
+                amount: amount,
+                category: selectedCategory,
+                accountId: accountId,
+                accountType: accountType,
+                note: document.getElementById('note').value,
+                date: new Date().toISOString()
+            };
+
+            fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            })
+            .then(res => res.json())
+            .then(res => {
+                alert('記帳成功！');
+                location.href = 'index.html'; // 記完跳回錢包頁
+            });
+        }
+    </script>
+</body>
+</html>
